@@ -15,6 +15,12 @@ db = psycopg2.connect(host=CONFIG_POSTGRES_HOST, database="postgres",
                       cursor_factory=psycopg2.extras.DictCursor)
 
 
+@bottle.hook('after_request')
+def enable_cors():
+    bottle.response.headers['Access-Control-Allow-Origin'] = '*'
+    bottle.response.headers['Access-Control-Allow-Methods'] = 'PUT, GET, POST, DELETE, OPTIONS'
+
+
 @bottle.post("/<user>")
 @bottle.put("/<user>/<comment_id:int>")
 def store_comment(user, comment_id=None):
