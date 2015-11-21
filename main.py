@@ -64,6 +64,7 @@ def delete_comment(user, comment_id):
 @bottle.route('/<:re:.*>', method='OPTIONS')
 def cors_generic_route():
     bottle.response.headers['Access-Control-Allow-Origin'] = '*'
+    bottle.response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
 
 
 def main():
