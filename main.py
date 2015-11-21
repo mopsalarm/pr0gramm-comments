@@ -29,13 +29,13 @@ def store_comment(user, comment_id=None):
 
     with db, db.cursor() as cursor:
         cursor.execute('''
-            INSERT INTO comment_favorites (fav_owner, id, item_id, name, content, created, up, down, mark)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO comment_favorites (fav_owner, id, item_id, name, content, created, up, down, mark, thumb)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (fav_owner, id)
                 DO UPDATE SET created=%s, up=%s, down=%s, mark=%s
         ''', [user,
               body.id, body.item_id,
-              body.name, body.content, body.created, body.up, body.down, body.mark,
+              body.name, body.content, body.created, body.up, body.down, body.mark, body.thumb,
               body.created, body.up, body.down, body.mark])
 
 
@@ -43,7 +43,7 @@ def store_comment(user, comment_id=None):
 def list_comments(user):
     with db, db.cursor() as cursor:
         cursor.execute(
-            'SELECT id, item_id, name, content, created, up, down, mark FROM comment_favorites '
+            'SELECT id, item_id, name, content, created, up, down, mark, thumb FROM comment_favorites '
             'WHERE fav_owner=%s ORDER BY created DESC',
             [user])
 

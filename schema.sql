@@ -11,7 +11,8 @@ CREATE TABLE comment_favorites (
     created INTEGER NOT NULL,
     up  INTEGER NOT NULl CHECK (up >= 0),
     down INTEGER NOT NULL CHECK (down >= 0),
-    mark INTEGER NOT NULL CHECK (mark >= 0 AND mark < 16)
+    mark INTEGER NOT NULL CHECK (mark >= 0 AND mark < 16),
+    thumb VARCHAR (255) NOT NULL
 );
 
 CREATE UNIQUE INDEX "comment_favorites__fav_owner__id" ON comment_favorites(fav_owner, id);
