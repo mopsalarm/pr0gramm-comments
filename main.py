@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import json
 import os
-
 import bottle
 import psycopg2
 import psycopg2.extras
@@ -60,6 +59,11 @@ def delete_comment(user, comment_id):
     with db, db.cursor() as cursor:
         cursor.execute('DELETE FROM comment_favorites WHERE fav_owner=%s AND id=%s',
                        [user, comment_id])
+
+
+@bottle.route('/<:re:.*>', method='OPTIONS')
+def cors_generic_route():
+    bottle.response.headers['Access-Control-Allow-Origin'] = '*'
 
 
 def main():
