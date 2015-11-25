@@ -4,6 +4,8 @@ import os
 import bottle
 import psycopg2
 import psycopg2.extras
+
+from first import first
 from attrdict import AttrDict as attrdict
 
 CONFIG_POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
@@ -28,14 +30,19 @@ def store_comment(user, comment_id=None):
         raise bottle.abort(400)
 
     with db, db.cursor() as cursor:
+        # get flag from the database.
+        if "flags" not in body:
+            cursor.execute('SELECT flags FROM items WHERE id=%s', [body.item_id])
+            body.flags = first(row for row, in cursor.fetchall())
+
         cursor.execute('''
-            INSERT INTO comment_favorites (fav_owner, id, item_id, name, content, created, up, down, mark, thumb)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO comment_favorites (fav_owner, id, item_id, name, content, created, up, down, mark, thumb, flags)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (fav_owner, id)
                 DO UPDATE SET created=%s, up=%s, down=%s, mark=%s
         ''', [user,
               body.id, body.item_id,
-              body.name, body.content, body.created, body.up, body.down, body.mark, body.thumb,
+              body.name, body.content, body.created, body.up, body.down, body.mark, body.thumb, body.flags,
               body.created, body.up, body.down, body.mark])
 
 
@@ -43,7 +50,7 @@ def store_comment(user, comment_id=None):
 def list_comments(user):
     with db, db.cursor() as cursor:
         cursor.execute(
-            'SELECT id, item_id, name, content, created, up, down, mark, thumb FROM comment_favorites '
+            'SELECT id, item_id, name, content, created, up, down, mark, thumb, flags FROM comment_favorites '
             'WHERE fav_owner=%s ORDER BY created DESC',
             [user])
 
