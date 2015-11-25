@@ -48,11 +48,14 @@ def store_comment(user, comment_id=None):
 
 @bottle.get("/<user>")
 def list_comments(user):
+    flags = int(bottle.request.query.get("flags", 7))
+    flags = [flags & f for f in (1, 2, 4)]
+
     with db, db.cursor() as cursor:
         cursor.execute(
             'SELECT id, item_id, name, content, created, up, down, mark, thumb, flags FROM comment_favorites '
-            'WHERE fav_owner=%s ORDER BY created DESC',
-            [user])
+            'WHERE fav_owner=%s AND flags IN %s ORDER BY created DESC',
+            [user, tuple(flags)])
 
         comments = [dict(row) for row in cursor]
 
