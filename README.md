@@ -4,11 +4,13 @@ Service to store comment favorites.
 ## Client
 This is a simple javascript client using jQuery.
 ```javascript
+
 var CommentFavorites = {
-  list: function(user_hash) {
+  list: function(user_hash, flags) {
     return jQuery.ajax({
         method: "GET",
-        url: "http://pr0.wibbly-wobbly.de/api/comments/v1/" + encodeURIComponent(user_hash)
+        url: "//pr0.wibbly-wobbly.de/api/comments/v1/" + encodeURIComponent(user_hash),
+        data: {flags: flags || 1}
     });
   },
 
@@ -16,7 +18,7 @@ var CommentFavorites = {
     var body = jQuery.extend({}, comment, {item_id: item_id});
     return jQuery.ajax({
       method: "POST",
-      url: "http://pr0.wibbly-wobbly.de/api/comments/v1/" + encodeURIComponent(user_hash),
+      url: "//pr0.wibbly-wobbly.de/api/comments/v1/" + encodeURIComponent(user_hash),
       contentType: "application/json",
       data: JSON.stringify(body)
     });
@@ -25,7 +27,7 @@ var CommentFavorites = {
   delete: function(user_hash, comment_id) {
     return jQuery.ajax({
       method: "POST",
-      url: "http://pr0.wibbly-wobbly.de/api/comments/v1/" + encodeURIComponent(user_hash) + "/" + encodeURIComponent(comment_id) + "/delete"
+      url: "//pr0.wibbly-wobbly.de/api/comments/v1/" + encodeURIComponent(user_hash) + "/" + encodeURIComponent(comment_id) + "/delete"
     });
   }
 };
