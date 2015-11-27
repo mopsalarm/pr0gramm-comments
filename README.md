@@ -40,14 +40,15 @@ exactly the same as on a pr0gramm comment object.
 Examples:
 ```javascript
 var user = someMd5HashLibrary.hash(info.user.email);
-var comment = {id: 42, name: "Mopsalarm", content: "Testkommentar", up:20, down:10, mark:0, created: 1448092867, thumb: "2015/11/21/2b37cf2e3f9774a4.jpg"};
+var comment = {id: 42, name: "Mopsalarm", content: "Testkommentar", up:20, down:10, mark:0, created: 1448092867, thumb: "2015/11/21/2b37cf2e3f9774a4.jpg", flags: 1};
 var item_id = 771552;
 
 CommentFavorites.put(user, item_id, comment).then(function() {
   console.log("Comment saved");
 });
 
-CommentFavorites.list(user).then(function(comments) {
+var flags = 1; // bit combination of 1, 2, 4
+CommentFavorites.list(user, flags).then(function(comments) {
   console.log("Comments: ", comments);
 });
 
