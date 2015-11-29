@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
+import functools
 import json
 import os
+from contextlib import contextmanager
+
 import bottle
+import datadog
 import psycopg2
 import psycopg2.extras
-
-from first import first
 from attrdict import AttrDict as attrdict
+from first import first
+
+datadog.initialize()
+stats = datadog.ThreadStats(["app:comments"])
+stats.start()
 
 CONFIG_POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
 
@@ -15,6 +22,18 @@ db = psycopg2.connect(host=CONFIG_POSTGRES_HOST, database="postgres",
                       user="postgres", password="password",
                       cursor_factory=psycopg2.extras.DictCursor)
 
+
+def stopwatch_plugin(func):
+    def wrapper(*args, **kwargs):
+        name = "pr0gramm.kfav.%s" % func.__name__
+        user_agent = bottle.request.headers.get("user-agent", "").lower()
+        platform = "app" if "okhttp" in user_agent else "browser"
+        with stats.timer(name, tags=["platform:%s" % platform]):
+            return func(*args, **kwargs)
+
+    return wrapper
+
+bottle.install(stopwatch_plugin)
 
 @bottle.hook('after_request')
 def enable_cors():
