@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-import functools
 import json
 import os
-from contextlib import contextmanager
 
 import bottle
 import datadog
+import pcc
 import psycopg2
 import psycopg2.extras
 from attrdict import AttrDict as attrdict
@@ -18,9 +17,11 @@ stats.start()
 CONFIG_POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
 
 print("Open database at {}".format(CONFIG_POSTGRES_HOST))
-db = psycopg2.connect(host=CONFIG_POSTGRES_HOST, database="postgres",
-                      user="postgres", password="password",
-                      cursor_factory=psycopg2.extras.DictCursor)
+dbpool = pcc.RefreshingConnectionCache(
+        lifetime=600,
+        host=CONFIG_POSTGRES_HOST, database="postgres",
+        user="postgres", password="password",
+        cursor_factory=psycopg2.extras.DictCursor)
 
 
 def stopwatch_plugin(func):
@@ -33,7 +34,9 @@ def stopwatch_plugin(func):
 
     return wrapper
 
+
 bottle.install(stopwatch_plugin)
+
 
 @bottle.hook('after_request')
 def enable_cors():
@@ -48,7 +51,7 @@ def store_comment(user, comment_id=None):
     if comment_id and body.id != comment_id:
         raise bottle.abort(400)
 
-    with db, db.cursor() as cursor:
+    with dbpool.tx() as database, database.cursor() as cursor:
         # get flag from the database.
         if "flags" not in body:
             cursor.execute('SELECT flags FROM items WHERE id=%s', [body.item_id])
@@ -70,11 +73,11 @@ def list_comments(user):
     flags = int(bottle.request.query.get("flags", 7))
     flags = [flags & f for f in (1, 2, 4)]
 
-    with db, db.cursor() as cursor:
+    with dbpool.tx() as database, database.cursor() as cursor:
         cursor.execute(
-            'SELECT id, item_id, name, content, created, up, down, mark, thumb, flags FROM comment_favorites '
-            'WHERE fav_owner=%s AND flags IN %s ORDER BY created DESC',
-            [user, tuple(flags)])
+                'SELECT id, item_id, name, content, created, up, down, mark, thumb, flags FROM comment_favorites '
+                'WHERE fav_owner=%s AND flags IN %s ORDER BY created DESC',
+                [user, tuple(flags)])
 
         comments = [dict(row) for row in cursor]
 
@@ -85,7 +88,7 @@ def list_comments(user):
 @bottle.delete("/<user>/<comment_id:int>")
 @bottle.post("/<user>/<comment_id:int>/delete")
 def delete_comment(user, comment_id):
-    with db, db.cursor() as cursor:
+    with dbpool.tx() as database, database.cursor() as cursor:
         cursor.execute('DELETE FROM comment_favorites WHERE fav_owner=%s AND id=%s',
                        [user, comment_id])
 
