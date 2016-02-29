@@ -24,11 +24,14 @@ dbpool = pcc.RefreshingConnectionCache(
         cursor_factory=psycopg2.extras.DictCursor)
 
 
+def is_app_user_agent(user_agent):
+    return "okhttp" in user_agent or "pr0gramm-app" in user_agent
+
 def stopwatch_plugin(func):
     def wrapper(*args, **kwargs):
         name = "pr0gramm.kfav.%s" % func.__name__
         user_agent = bottle.request.headers.get("user-agent", "").lower()
-        platform = "app" if "okhttp" in user_agent else "browser"
+        platform = "app" if is_app_user_agent(user_agent) else "browser"
         with stats.timer(name, tags=["platform:%s" % platform]):
             return func(*args, **kwargs)
 
