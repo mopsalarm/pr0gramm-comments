@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import json
 import os
+import re
 
 import bottle
 import datadog
 import pcc
-import psycopg2
 import psycopg2.extras
 from attrdict import AttrDict as attrdict
 from first import first
@@ -18,10 +18,10 @@ CONFIG_POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
 
 print("Open database at {}".format(CONFIG_POSTGRES_HOST))
 dbpool = pcc.RefreshingConnectionCache(
-        lifetime=600,
-        host=CONFIG_POSTGRES_HOST, database="postgres",
-        user="postgres", password="password",
-        cursor_factory=psycopg2.extras.DictCursor)
+    lifetime=600,
+    host=CONFIG_POSTGRES_HOST, database="postgres",
+    user="postgres", password="password",
+    cursor_factory=psycopg2.extras.DictCursor)
 
 
 def is_app_user_agent(user_agent):
@@ -47,6 +47,35 @@ def enable_cors():
     bottle.response.headers['Access-Control-Allow-Methods'] = 'PUT, GET, POST, DELETE, OPTIONS'
 
 
+@bottle.post("/migrate")
+def migrate():
+    id_from = bottle.request.query["from"]
+    id_to = bottle.request.query["to"]
+
+    if not re.match("[a-f0-9]{32}", id_from):
+        return bottle.abort(400)
+
+    if not re.match("[a-f0-9]{32}", id_to):
+        return bottle.abort(400)
+
+    with dbpool.tx() as database, database.cursor() as cursor:
+        cursor.execute('''
+            INSERT INTO user_token (mail_hash, token)
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING
+        ''', [id_from, id_to])
+
+    return {}
+
+
+def resolve_user_token(db, token):
+    with db.cursor() as cursor:
+        cursor.execute("SELECT mail_hash from user_token WHERE token=%s", [token])
+        user_hash, = first(cursor)
+
+    return user_hash
+
+
 @bottle.post("/<user>")
 @bottle.put("/<user>/<comment_id:int>")
 def store_comment(user, comment_id=None):
@@ -55,6 +84,8 @@ def store_comment(user, comment_id=None):
         raise bottle.abort(400)
 
     with dbpool.tx() as database, database.cursor() as cursor:
+        user = resolve_user_token(database, user)
+
         # get flag from the database.
         if "flags" not in body:
             cursor.execute('SELECT flags FROM items WHERE id=%s', [body.item_id])
@@ -77,10 +108,12 @@ def list_comments(user):
     flags = [flags & f for f in (1, 2, 4)]
 
     with dbpool.tx() as database, database.cursor() as cursor:
+        user = resolve_user_token(database, user)
+
         cursor.execute(
-                'SELECT id, item_id, name, content, created, up, down, mark, thumb, flags FROM comment_favorites '
-                'WHERE fav_owner=%s AND flags IN %s ORDER BY created DESC',
-                [user, tuple(flags)])
+            'SELECT id, item_id, name, content, created, up, down, mark, thumb, flags FROM comment_favorites '
+            'WHERE fav_owner=%s AND flags IN %s ORDER BY created DESC',
+            [user, tuple(flags)])
 
         comments = [dict(row) for row in cursor]
 
@@ -92,6 +125,7 @@ def list_comments(user):
 @bottle.post("/<user>/<comment_id:int>/delete")
 def delete_comment(user, comment_id):
     with dbpool.tx() as database, database.cursor() as cursor:
+        user = resolve_user_token(database, user)
         cursor.execute('DELETE FROM comment_favorites WHERE fav_owner=%s AND id=%s',
                        [user, comment_id])
 
