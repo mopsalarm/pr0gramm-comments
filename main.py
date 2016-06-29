@@ -71,7 +71,12 @@ def migrate():
 def resolve_user_token(db, token):
     with db.cursor() as cursor:
         cursor.execute("SELECT mail_hash from user_token WHERE token=%s", [token])
-        user_hash, = first(cursor)
+        match = first(cursor)
+        if match is None:
+            # no match, return original token
+            return token
+
+        user_hash, = match
 
     return user_hash
 
