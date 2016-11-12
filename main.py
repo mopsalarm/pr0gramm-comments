@@ -109,8 +109,8 @@ def store_comment(user, comment_id=None):
 
 @bottle.get("/<user>")
 def list_comments(user):
-    flags = int(bottle.request.query.get("flags", 7))
-    flags = [flags & f for f in (1, 2, 4)]
+    flags = int(bottle.request.query.get("flags", 1|2|4|8))
+    flags = [flags & f for f in (1, 2, 4, 8)]
 
     with dbpool.tx() as database, database.cursor() as cursor:
         user = resolve_user_token(database, user)
