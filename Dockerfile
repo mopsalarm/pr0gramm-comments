@@ -1,5 +1,18 @@
-FROM gliderlabs/python-runtime:3.4
+FROM python:3.6-alpine
 MAINTAINER Mopsalarm
 
+COPY requirements.txt /tmp/
+
+RUN apk update \
+ && apk add postgresql-libs postgresql-dev python3-dev gcc musl-dev \
+ && pip install -r /tmp/requirements.txt \
+ && apk del postgresql-dev python3-dev gcc musl-dev \
+ && rm -rf /var/cache/apk
+
+COPY . /app/
+
 EXPOSE 8080
-CMD PYTHONPATH=/app /env/bin/python -m bottle -s cherrypy -b 0.0.0.0:8080 --debug main
+
+ENV PYTHONPATH=/app PYTHONUNBUFFERED=1
+
+ENTRYPOINT ["/usr/local/bin/python3", "-m", "bottle", "-s", "cherrypy", "-b", "0.0.0.0:8080", "--debug", "main"]

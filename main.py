@@ -11,7 +11,7 @@ from attrdict import AttrDict as attrdict
 from first import first
 
 datadog.initialize()
-stats = datadog.ThreadStats(["app:comments"])
+stats = datadog.ThreadStats(constant_tags=["app:comments"])
 stats.start()
 
 CONFIG_POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
@@ -49,36 +49,7 @@ def enable_cors():
 
 @bottle.post("/migrate")
 def migrate():
-    id_from = bottle.request.query["from"]
-    id_to = bottle.request.query["to"]
-
-    if not re.match("[a-f0-9]{32}", id_from):
-        return bottle.abort(400)
-
-    if not re.match("[a-f0-9]{32}", id_to):
-        return bottle.abort(400)
-
-    with dbpool.tx() as database, database.cursor() as cursor:
-        cursor.execute('''
-            INSERT INTO user_token (mail_hash, token)
-            VALUES (%s, %s)
-            ON CONFLICT DO NOTHING
-        ''', [id_from, id_to])
-
     return {}
-
-
-def resolve_user_token(db, token):
-    with db.cursor() as cursor:
-        cursor.execute("SELECT mail_hash from user_token WHERE token=%s", [token])
-        match = first(cursor)
-        if match is None:
-            # no match, return original token
-            return token
-
-        user_hash, = match
-
-    return user_hash
 
 
 @bottle.post("/<user>")
@@ -89,8 +60,6 @@ def store_comment(user, comment_id=None):
         raise bottle.abort(400)
 
     with dbpool.tx() as database, database.cursor() as cursor:
-        user = resolve_user_token(database, user)
-
         # get flag from the database.
         if "flags" not in body:
             cursor.execute('SELECT flags FROM items WHERE id=%s', [body.item_id])
@@ -113,11 +82,9 @@ def list_comments(user):
     flags = [flags & f for f in (1, 2, 4, 8)]
 
     with dbpool.tx() as database, database.cursor() as cursor:
-        user = resolve_user_token(database, user)
-
         cursor.execute(
             'SELECT id, item_id, name, content, created, up, down, mark, thumb, flags FROM comment_favorites '
-            'WHERE fav_owner=%s AND flags IN %s ORDER BY created DESC',
+            'WHERE fav_owner=%s AND (TRUE OR flags IN %s) ORDER BY created DESC LIMIT 256',
             [user, tuple(flags)])
 
         comments = [dict(row) for row in cursor]
@@ -130,7 +97,6 @@ def list_comments(user):
 @bottle.post("/<user>/<comment_id:int>/delete")
 def delete_comment(user, comment_id):
     with dbpool.tx() as database, database.cursor() as cursor:
-        user = resolve_user_token(database, user)
         cursor.execute('DELETE FROM comment_favorites WHERE fav_owner=%s AND id=%s',
                        [user, comment_id])
 
