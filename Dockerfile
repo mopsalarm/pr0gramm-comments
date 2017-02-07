@@ -4,7 +4,7 @@ MAINTAINER Mopsalarm
 COPY requirements.txt /tmp/
 
 RUN apk update \
- && apk add postgresql-libs postgresql-dev python3-dev gcc musl-dev \
+ && apk add ca-certificates postgresql-libs postgresql-dev python3-dev gcc musl-dev \
  && pip install -r /tmp/requirements.txt \
  && apk del postgresql-dev python3-dev gcc musl-dev \
  && rm -rf /var/cache/apk
